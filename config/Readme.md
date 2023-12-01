@@ -1,0 +1,1 @@
+$env:GOOGLE_APPLICATION_CREDENTIALS="C:\Users\lopez\Desktop\Backend_Api_RestFull_App_Movile\config\GOOGLE_APPLICATION_CREDENTIALS\grupo2appmovil-firebase-adminsdk-lz5q3-2fe0fa7e60.json"
