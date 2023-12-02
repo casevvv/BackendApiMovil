@@ -24,6 +24,7 @@ conn.connect(
     }
     else {
       console.log("Connection established.");
+      
     }
   });
 
@@ -136,6 +137,10 @@ exports.signUp = async (req, res) => {
         } else if (results.length > 0) {
           res.status(400).send({ message: 'Ya existe una cuenta!' });
         } else {
+            // const salt = await bcrypt.genSalt(10);
+            // password = await bcrypt.hash(this.password, salt);
+            // console.log(password)
+
           const newRegister = {
             nombre: nombre,
             apellidos: apellidos,
@@ -193,20 +198,20 @@ exports.login = async (req, res) => {
       return res.status(401).send({ message: 'Los datos no están completos!, llenalos!' });
     } else {
       //buscar usuario en la colecion de usuarios por email  para saber si ya existe o no se ha registrado
-      const user = conn.query('SELECT * FROM usuarios WHERE email = ?', [email], async (error, results) => {
+      conn.query('SELECT * FROM usuarios WHERE email = ?', [email], async (error, results) => {
         if (error) {
           return res.status(401).send({ message: 'correo o contraseña incorrecto!' });
 
         } else if (results.length > 0) {
-      
+          console.log(results)
           const match = await bcrypt.compare(password, results[0].password);
 
           if (!match) {
             return res.status(401).send(match);
           } else {
             const payload = {
-              id: user.id,
-              password: user.password
+              id: results[0].email,
+              password: results[0].password
             };
             const token = jwt.sign(payload, MASTER_KEY);
             res.json({ user, token });
