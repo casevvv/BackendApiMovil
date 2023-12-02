@@ -42,7 +42,7 @@ const handleMulterError = (err, req, res, next) => {
         fileSize: 5 * 1024 * 1024 // Límite de 5 MB (en bytes)
       }
     }).single('foto');
-  
+  //dwedwede
     uploads(req, res, (err) => {
       if (err) {
         // Manejar el error en caso de fallo en la subida del archivo
