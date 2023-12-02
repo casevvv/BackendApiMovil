@@ -43,69 +43,69 @@ exports.sendEmailToUser  = async (req, res) => {
  
 };
 
-exports.sendEmail = async (req, res) => {
-  try {
+// exports.sendEmail = async (req, res) => {
+//   try {
    
-    let {firstName, lastName, from, subject, text } = req.body;
+//     let {firstName, lastName, from, subject, text } = req.body;
 
-    if (!firstName || !lastName || !from || !subject || !text) {
-      return res.status(400).send('Debes llenar todos los campos para poder enviar el correo!')
-    }
+//     if (!firstName || !lastName || !from || !subject || !text) {
+//       return res.status(400).send('Debes llenar todos los campos para poder enviar el correo!')
+//     }
 
-      const data = new modeloEmail({
+//       const data = new modeloEmail({
 
-          name: `${firstName} ${lastName}`,
-          from: from,
-          subject: subject,
-          text: text
+//           name: `${firstName} ${lastName}`,
+//           from: from,
+//           subject: subject,
+//           text: text
         
-      });
+//       });
 
-      const newRegister = await data.save();
+//       const newRegister = await data.save();
 
-      res.status(201).send(newRegister);
+//       res.status(201).send(newRegister);
     
-  } catch (err) {
-    console.error("Error al enviar el correo:", err);
-    res.status(500).send("Error en el microservicio enviar correo");
-  };
+//   } catch (err) {
+//     console.error("Error al enviar el correo:", err);
+//     res.status(500).send("Error en el microservicio enviar correo");
+//   };
 
-};
+// };
 
-exports.getEmail = async (req, res) => {
-  try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
+// exports.getEmail = async (req, res) => {
+//   try {
+//     const page = parseInt(req.query.page) || 1;
+//     const limit = parseInt(req.query.limit) || 10;
 
-    const data = await modeloEmail.paginate({}, { page, limit });
+//     const data = await modeloEmail.paginate({}, { page, limit });
 
-    if (data.totalDocs === 0) {
-      return res.status(404).send({ message: 'No hay correos!' });
-    }
+//     if (data.totalDocs === 0) {
+//       return res.status(404).send({ message: 'No hay correos!' });
+//     }
 
-    res.status(200).send(data);
+//     res.status(200).send(data);
 
-  } catch (err){
-    console.error("Error en el microservicio Obtener Correos:", err);
-    res.status(500).send({message:`Error en el microservicio Obtener Correos`})
-  };
-};
+//   } catch (err){
+//     console.error("Error en el microservicio Obtener Correos:", err);
+//     res.status(500).send({message:`Error en el microservicio Obtener Correos`})
+//   };
+// };
 
-exports.deleteEmail = async (req, res)=>{
-    try {
-        const { id } = req.params;
+// exports.deleteEmail = async (req, res)=>{
+//     try {
+//         const { id } = req.params;
 
-        if(!id){
-          return res.status(400).send({message:'Para borrar un correo debes indicar cuál con un ID'});
-        }else{
-          const deleteEmail = await modeloEmail.findByIdAndDelete(id);
+//         if(!id){
+//           return res.status(400).send({message:'Para borrar un correo debes indicar cuál con un ID'});
+//         }else{
+//           const deleteEmail = await modeloEmail.findByIdAndDelete(id);
 
-          if(deleteEmail)res.status(200).send({message:`Se elimino el correo con ID: ${id}`});
-          else
-          res.status(404).send({message:`No se encontro información relacionada con el id:${id}`});
-        };
-    } catch (err) {
-      console.error("Error en el microservicio Eliminar Correos:", err);
-      res.status(500).send({message:`Error en el microservicio Eliminar Correos`})
-    }
-};
+//           if(deleteEmail)res.status(200).send({message:`Se elimino el correo con ID: ${id}`});
+//           else
+//           res.status(404).send({message:`No se encontro información relacionada con el id:${id}`});
+//         };
+//     } catch (err) {
+//       console.error("Error en el microservicio Eliminar Correos:", err);
+//       res.status(500).send({message:`Error en el microservicio Eliminar Correos`})
+//     }
+// };
