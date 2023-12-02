@@ -16,6 +16,7 @@ let conn = new mysql.createConnection({
     ca: fs.readFileSync("config/DigiCertGlobalRootCA.crt.pem")
   }
 });
+
 conn.connect(
   function (err) {
     if (err) {

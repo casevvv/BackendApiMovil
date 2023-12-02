@@ -7,6 +7,7 @@ const storage = multer.diskStorage({
 
     cb(null, Date.now() + extension);
   }
+  
 });
 const fileFilter = (req, file, callback) => {
   // Aquí puedes definir tu lógica de filtrado de archivos
