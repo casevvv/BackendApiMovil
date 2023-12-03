@@ -130,7 +130,7 @@ exports.signUp = async (req, res) => {
     const foto = req.file.path;
 
     if (!nombre || !apellidos || !identidad || !email || !telefono ||  !foto || !password || !carrera) {
-      return res.status(500).send(Error);
+      return res.status(500).send({ message: 'Los datos no están completos!' });
     } else {
       conn.query('SELECT * FROM usuarios WHERE email = ?', [email], async (error, results) => {
         if (error) {
@@ -138,9 +138,9 @@ exports.signUp = async (req, res) => {
         } else if (results.length > 0) {
           res.status(400).send({ message: 'Ya existe una cuenta!' });
         } else {
-            // const salt = await bcrypt.genSalt(10);
-            // password = await bcrypt.hash(this.password, salt);
-            // console.log(password)
+
+          if(password < 8)
+            return res.status(400).send({message: "La cantidad de la contraseña es corta, minimo 8 carácteres!"});
 
           const newRegister = {
             nombre: nombre,
@@ -164,12 +164,12 @@ exports.signUp = async (req, res) => {
               if (error) {
                 res.status(500).json({ error });
               } else {
-                const savedUser = { id: result.insertId, newRegister };
+                const savedUser = { newRegister };
 
                 // Generación del token JWT
                 const jwtPayload = {
-                  id: savedUser.id,
-                  email: savedUser.email
+                  email: savedUser.newRegister.email,
+                  password: savedUser.newRegister.password
                 };
 
                 const token = jwt.sign(jwtPayload, MASTER_KEY);
@@ -201,21 +201,21 @@ exports.login = async (req, res) => {
       //buscar usuario en la colecion de usuarios por email  para saber si ya existe o no se ha registrado
       conn.query('SELECT * FROM usuarios WHERE email = ?', [email], async (error, results) => {
         if (error) {
-          return res.status(401).send({ message: 'correo o contraseña incorrecto!' });
+          return res.status(401).send({ message: 'No existe esa cuenta!' });
 
-        } else if (results.length > 0) {
+        } else if(results.length > 0) {
           console.log(results)
-          const match = await bcrypt.compare(password, results[0].password);
+          const user = results[0];
 
-          if (!match) {
-            return res.status(401).send(match);
-          } else {
+          if (user.password === password) {
             const payload = {
-              id: results[0].email,
-              password: results[0].password
+              email: user.email,
+              password: user.password
             };
             const token = jwt.sign(payload, MASTER_KEY);
             res.json({ user, token });
+          } else {
+            return res.status(401).send({ message: 'Correo o contraseña incorrecta!' })
           };
         }
       }
