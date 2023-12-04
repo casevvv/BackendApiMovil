@@ -1,40 +1,65 @@
 const conn = require("../config/db.js");
 
 // Ruta para crear un grupo
-exports.creatGroup = async (req, res) => {
+exports.createGroup = async (req, res) => {
     try {
-        const { grupo } = req.body;
+        const { grupo, descripcion } = req.body;
         const { id_creador } = req.query;
 
         // Verificar si el nombre del grupo ya existe en la base de datos
-        conn.query("SELECT * FROM grupos WHERE grupo = ?",
-            [grupo],
-            async (error, results) => {
-                if (error) {
-                    return res.status(500).json({ error: "Error al verificar el nombre del grupo en la base de datos" });
-                }
+        const checkGroupQuery = "SELECT * FROM grupos WHERE grupo = ?";
+        const existingGroup = await queryAsync(checkGroupQuery, [grupo]);
 
-                // Si hay resultados, significa que el nombre del grupo ya existe
-                if (results.length > 0) {
-                    return res.status(400).json({ error: "El nombre del grupo ya está en uso" });
-                }
+        if (existingGroup.length > 0) {
+            return res.status(400).json({ error: "El nombre del grupo ya está en uso" });
+        }
 
-                // Si no hay resultados, el nombre del grupo no está en uso y se puede insertar
-                conn.query("INSERT INTO grupos (id_creador,grupo) VALUES (?,?)",
-                    [id_creador, grupo],
-                    (error, result) => {
-                        if (error) {
-                            return res.status(500).json({ error: "Error al agregar el grupo a la base de datos" });
-                        }
-                        res.status(200).json({ message: "Grupo creado" });
-                    }
-                );
+        // Iniciar transacción para asegurar la creación atómica del grupo y su chat asociado
+        conn.beginTransaction(async (err) => {
+            if (err) {
+                return res.status(500).json({ error: "Error al iniciar la transacción" });
             }
-        );
+
+            try {
+                // Insertar el grupo en la base de datos
+                const insertGroupQuery = "INSERT INTO grupos (id_creador, grupo, descripcion) VALUES (?, ?, ?)";
+                const groupResult = await queryAsync(insertGroupQuery, [id_creador, grupo, descripcion]);
+                const idGrupo = groupResult.insertId;
+
+                // Crear el chat asociado al grupo en la tabla Chat
+                const insertChatQuery = "INSERT INTO chat (id_grupo, id_usuario) VALUES (?, ?)";
+                await queryAsync(insertChatQuery, [idGrupo, id_creador, `¡Bienvenido al grupo ${grupo}!`]);
+
+                // Añadir al creador al grupo si no está en él
+                const checkIfCreatorInGroupQuery = "SELECT * FROM usuariosgrupos WHERE usuario_id = ? AND grupo_id = ?";
+                const creatorInGroupResults = await queryAsync(checkIfCreatorInGroupQuery, [id_creador, idGrupo]);
+
+                if (creatorInGroupResults.length === 0) {
+                    const insertCreatorQuery = "INSERT INTO usuariosgrupos (usuario_id, grupo_id) VALUES (?, ?)";
+                    await queryAsync(insertCreatorQuery, [id_creador, idGrupo]);
+                }
+
+                // Confirmar la transacción
+                conn.commit((error) => {
+                    if (error) {
+                        conn.rollback(() => {
+                            return res.status(500).json({ error: "Error al confirmar la transacción" });
+                        });
+                    }
+
+                    res.status(200).json({ message: "Grupo creado y chat asociado correctamente" });
+                });
+            } catch (error) {
+                conn.rollback(() => {
+                    res.status(500).json({ error: error.message });
+                });
+            }
+        });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
 };
+
 
 exports.addMember = async (req, res) => {
     try {

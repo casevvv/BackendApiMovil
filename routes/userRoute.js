@@ -13,7 +13,7 @@ module.exports = (app) => {
     app.get("/getFriends", auth.authenticate, controllerFriend.getFriends);
     app.delete("/deleteFriends", auth.authenticate, controllerFriend.deleteFriend)
 
-    app.post('/creatGroup',auth.authenticate, controllerGroup.creatGroup);
+    app.post('/creatGroup',auth.authenticate, controllerGroup.createGroup);
     app.delete('/deletGroup', auth.authenticate, controllerGroup.deleteGroup);
     app.post('/addMember',auth.authenticate, controllerGroup.addMember);
     app.post('/deletUserGroup', auth.authenticate, controllerGroup.deleteUserGroup);
