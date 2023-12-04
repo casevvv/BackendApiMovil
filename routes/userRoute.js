@@ -14,6 +14,8 @@ module.exports = (app) => {
     app.delete("/deleteFriends", auth.authenticate, controllerFriend.deleteFriend)
 
     app.post('/creatGroup',auth.authenticate, controllerGroup.creatGroup);
+    app.delete('/deletGroup', auth.authenticate, controllerGroup.deleteGroup);
     app.post('/addMember',auth.authenticate, controllerGroup.addMember);
+    app.post('/deletUserGroup', auth.authenticate, controllerGroup.deleteUserGroup);
     app.get('/getUserGroups',auth.authenticate, controllerGroup.getUserGroups);
 }

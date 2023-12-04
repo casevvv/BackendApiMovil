@@ -55,7 +55,7 @@ exports.addMember = async (req, res) => {
         if (creatorResults.length > 0) {
             const idUsuarioCreador = creatorResults[0].id_creador;
 
-            if (idUsuarioCreador != id_creador) {
+            if (idUsuarioCreador != Number(id_creador)) {
                 return res.status(403).json({ error: 'No tienes permisos para añadir usuarios a este grupo.' });
             }
         }
@@ -82,6 +82,7 @@ function queryAsync(query, values) {
         });
     });
 }
+
 exports.getUserGroups = async (req, res) => {
     try {
         const { id_usuario } = req.query;
@@ -92,13 +93,91 @@ exports.getUserGroups = async (req, res) => {
         FROM usuariosgrupos
         WHERE usuario_id = ?
         `;
-        
+
         conn.query(userGroupsQuery, [id_usuario], (error, results) => {
             if (error) {
                 return res.status(500).json({ error: "Error al obtener los grupos del usuario" });
             }
 
             res.json({ total_groups: results[0].total_grupos });
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+exports.deleteUserGroup= async (req, res) => {
+    try {
+        const { id_usuario, id_grupo } = req.query;
+
+        // Verificar si el usuario está en el grupo
+        const existsQuery = `
+            SELECT *
+            FROM usuariosgrupos
+            WHERE usuario_id = ? AND grupo_id = ?
+        `;
+
+        conn.query(existsQuery, [id_usuario, id_grupo], (error, results) => {
+            if (error) {
+                return res.status(500).json({ error: "Error al verificar la existencia del usuario en el grupo" });
+            }
+
+            if (results.length === 0) {
+                return res.status(404).json({ error: "El usuario no está en este grupo" });
+            }
+
+            // Si el usuario está en el grupo, proceder con la eliminación
+            const deleteQuery = `
+                DELETE FROM usuariosgrupos
+                WHERE usuario_id = ? AND grupo_id = ?
+            `;
+
+            conn.query(deleteQuery, [id_usuario, id_grupo], (deleteError, deleteResults) => {
+                if (deleteError) {
+                    return res.status(500).json({ error: "Error al eliminar usuario del grupo" });
+                }
+
+                res.json({ message: "Usuario eliminado del grupo correctamente" });
+            });
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+exports.deleteGroup = async (req, res) => {
+    try {
+        const { id_grupo } = req.query;
+
+        // Verificar si el grupo existe
+        const existsQuery = `
+            SELECT *
+            FROM grupos
+            WHERE id = ?
+        `;
+
+        conn.query(existsQuery, [id_grupo], (error, results) => {
+            if (error) {
+                return res.status(500).json({ error: "Error al verificar la existencia del grupo" });
+            }
+
+            if (results.length === 0) {
+                return res.status(404).json({ error: "El grupo no existe" });
+            }
+
+            // Si el grupo existe, proceder con la eliminación
+            const deleteQuery = `
+                DELETE FROM grupos
+                WHERE id = ?
+            `;
+
+            conn.query(deleteQuery, [id_grupo], (deleteError, deleteResults) => {
+                if (deleteError) {
+                    return res.status(500).json({ error: "Error al eliminar el grupo" });
+                }
+
+                res.json({ message: "Grupo eliminado correctamente" });
+            });
         });
     } catch (error) {
         res.status(500).json({ error: error.message });
