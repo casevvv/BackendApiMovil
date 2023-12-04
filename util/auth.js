@@ -1,33 +1,8 @@
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
-const mysql = require('mysql2');
-const multer = require('../middlewares/multer.js');
-const fs = require('fs');
+const conn = require("../config/db.js");
 
 const MASTER_KEY = 'm38_$56/*d2hhv';
-
-let conn = new mysql.createConnection({
-  host: "proyectomovil.mysql.database.azure.com",
-  user: "Jairo",
-  password: "Tars1605@23",
-  database: "bdproyectofinal",
-  port: 3306,
-  ssl: {
-    ca: fs.readFileSync("config/DigiCertGlobalRootCA.crt.pem")
-  }
-});
-
-conn.connect(
-  function (err) {
-    if (err) {
-      console.log("!!! Cannot connect !!! Error:");
-      throw err;
-    }
-    else {
-      console.log("Connection established.");
-      
-    }
-  });
 
 exports.recoveryPassword = async (req, res) => {
   const authHeader = req.headers.authorization;
@@ -85,7 +60,6 @@ exports.recoveryPassword = async (req, res) => {
   }
 };
 
-
 exports.authenticate = (req, res, next) => {
   const authHeader = req.headers.authorization;
   console.log(authHeader)
@@ -114,6 +88,17 @@ exports.authenticate = (req, res, next) => {
   };
 
 };
+exports.careers = async (req, res) => {
+  conn.query('SELECT * FROM carreras', async (error, results) => {
+    if (error) {
+      res.status(500).json({ error: error.message });
+    } else if (results.length > 0) {
+      res.status(200).send(results[0]);
+    }
+  }
+  )
+}
+
 exports.signUp = async (req, res) => {
   try {
     const {
@@ -129,7 +114,7 @@ exports.signUp = async (req, res) => {
     console.log(req.file.path)
     const foto = req.file.path;
 
-    if (!nombre || !apellidos || !identidad || !email || !telefono ||  !foto || !password || !carrera) {
+    if (!nombre || !apellidos || !identidad || !email || !telefono || !foto || !password || !carrera) {
       return res.status(500).send({ message: 'Los datos no están completos!' });
     } else {
       conn.query('SELECT * FROM usuarios WHERE email = ?', [email], async (error, results) => {
@@ -139,8 +124,8 @@ exports.signUp = async (req, res) => {
           res.status(400).send({ message: 'Ya existe una cuenta!' });
         } else {
 
-          if(password < 8)
-            return res.status(400).send({message: "La cantidad de la contraseña es corta, minimo 8 carácteres!"});
+          if (password < 8)
+            return res.status(400).send({ message: "La cantidad de la contraseña es corta, minimo 8 carácteres!" });
 
           const newRegister = {
             nombre: nombre,
@@ -153,7 +138,7 @@ exports.signUp = async (req, res) => {
             carrera: carrera
           };
 
-          conn.query('INSERT INTO usuarios (nombre,apellidos,identidad,telefono,password,email,foto,carrera) VALUES (?, ?, ?, ?, ?, ?, ?, ?);', [nombre,
+          conn.query('INSERT INTO usuarios (nombre,apellidos,identidad,telefono,password,email,foto,carrera) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', [nombre,
             apellidos,
             identidad,
             telefono,
@@ -203,7 +188,7 @@ exports.login = async (req, res) => {
         if (error) {
           return res.status(401).send({ message: 'No existe esa cuenta!' });
 
-        } else if(results.length > 0) {
+        } else if (results.length > 0) {
           console.log(results)
           const user = results[0];
 
