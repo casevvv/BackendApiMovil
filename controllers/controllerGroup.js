@@ -36,59 +36,75 @@ exports.creatGroup = async (req, res) => {
     }
 };
 
-// Ruta para añadir un usuario a un grupo (solo permitido al creador del grupo)
 exports.addMember = async (req, res) => {
     try {
-        const { id_usuario, id_grupo } = req.params;
-
+        const { id_creador, id_usuario, id_grupo } = req.query;
+        console.log(req.query)
         // Verificar si el usuario ya está en el grupo
-        conn.query(
-            "SELECT * FROM usuariosgrupos WHERE usuario_id = ? AND grupo_id = ?",
-            [id_usuario, id_grupo],
-            async (error, results) => {
-                if (error) {
-                    return res.status(500).json({ error: "Error al verificar la relación usuario-grupo en la base de datos" });
-                }
-                // Si hay resultados, significa que el usuario ya está en el grupo
-                if (results.length > 0) {
-                    return res.status(400).json({ error: "El usuario ya está en este grupo" });
-                }
+        const checkUserGroupQuery = "SELECT * FROM usuariosgrupos WHERE usuario_id = ? AND grupo_id = ?";
+        const userGroupResults = await queryAsync(checkUserGroupQuery, [id_usuario, id_grupo]);
 
-                // se consulta para encontrar si la persona que hace la solicitud fue el creador del grupo
-                conn.query("SELECT id_creador FROM grupos WHERE id_grupo = ?",
-                    [id_grupo],
-                    async (error, results) => {
-                        if (error) {
-                            return res.status(500).json({ error: "Error al verificar el creador del grupo en la base de datos" });
-                        }
+        if (userGroupResults.length > 0) {
+            return res.status(400).json({ error: "El usuario ya está en este grupo" });
+        }
 
-                        // Si hay resultados, posiblemente sea el creador
-                        if (results.length > 0) {
-                            const idUsuarioCreador = results[0].id_creador;
+        // Consultar si el usuario que hace la solicitud es el creador del grupo
+        const checkCreatorQuery = "SELECT id_creador FROM grupos WHERE id = ?";
+        const creatorResults = await queryAsync(checkCreatorQuery, [id_grupo]);
 
-                            //se compara si lo es
-                            if (idUsuarioCreador !== Number(id_creador)) {
-                                return res.status(403).json({ error: 'No tienes permisos para añadir usuarios a este grupo.' });
-                            }
-                        }
-                    }
-                );
+        if (creatorResults.length > 0) {
+            const idUsuarioCreador = creatorResults[0].id_creador;
 
-                //añadir usuario al grupo en la base de datos
-                conn.query(
-                    "INSERT INTO usuariosgrupos (usuario_id, grupo_id) VALUES (?, ?)",
-                    [id_usuario, id_grupo],
-                    async (error, result) => {
-                        if (error) {
-                            return res.status(500).json({ error: "Error al agregar el miembro al grupo" });
-                        } else {
-                            res.json({ message: 'Usuario añadido al grupo correctamente.' });
-                        }
-                    }
-                );
+            if (idUsuarioCreador != id_creador) {
+                return res.status(403).json({ error: 'No tienes permisos para añadir usuarios a este grupo.' });
             }
-        );
+        }
+
+        // Añadir usuario al grupo en la base de datos
+        const insertUserQuery = "INSERT INTO usuariosgrupos (usuario_id, grupo_id) VALUES (?, ?)";
+        await queryAsync(insertUserQuery, [id_usuario, id_grupo]);
+
+        res.json({ message: 'Usuario añadido al grupo correctamente.' });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
 };
+
+// Función para realizar consultas a la base de datos de manera asíncrona
+function queryAsync(query, values) {
+    return new Promise((resolve, reject) => {
+        conn.query(query, values, (error, results) => {
+            if (error) {
+                reject(error);
+            } else {
+                resolve(results);
+            }
+        });
+    });
+}
+exports.getUserGroups = async (req, res) => {
+    try {
+        const { id_usuario } = req.query;
+
+        // Consulta para obtener los grupos a los que pertenece el usuario y contar los miembros
+        const userGroupsQuery = `
+        SELECT COUNT(DISTINCT grupo_id) AS total_grupos
+        FROM usuariosgrupos
+        WHERE usuario_id = ?
+        `;
+        
+        conn.query(userGroupsQuery, [id_usuario], (error, results) => {
+            if (error) {
+                return res.status(500).json({ error: "Error al obtener los grupos del usuario" });
+            }
+
+            res.json({ total_groups: results[0].total_grupos });
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+
+
+
