@@ -6,9 +6,11 @@ const controllerGroup = require('../controllers/controllerGroup.js')
 module.exports = (app) => {
   
     app.post('/signUp', multer.getFile,auth.signUp);
-    app.post('/login', auth.authenticate, auth.login);
+    app.post('/login', auth.login);
 
     app.get('/careers', auth.careers);
+    app.get('/userByCareer', controllerGroup.getUsersByCareer);
+
     app.post("/addFriends", auth.authenticate, controllerFriend.addFriend);
     app.get("/getFriends", auth.authenticate, controllerFriend.getFriends);
     app.delete("/deleteFriends", auth.authenticate, controllerFriend.deleteFriend)

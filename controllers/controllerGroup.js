@@ -3,9 +3,9 @@ const conn = require("../config/db.js");
 // Ruta para crear un grupo
 exports.createGroup = async (req, res) => {
     try {
-        const { grupo, descripcion } = req.body;
-        const { id_creador } = req.query;
+        const { grupo, descripcion, nombre} = req.body;
 
+        const {idUsuario} = req.query;
         // Verificar si el nombre del grupo ya existe en la base de datos
         const checkGroupQuery = "SELECT * FROM grupos WHERE grupo = ?";
         const existingGroup = await queryAsync(checkGroupQuery, [grupo]);
@@ -22,21 +22,21 @@ exports.createGroup = async (req, res) => {
 
             try {
                 // Insertar el grupo en la base de datos
-                const insertGroupQuery = "INSERT INTO grupos (id_creador, grupo, descripcion) VALUES (?, ?, ?)";
-                const groupResult = await queryAsync(insertGroupQuery, [id_creador, grupo, descripcion]);
+                const insertGroupQuery = "INSERT INTO grupos (id_usuario, grupo, usuario ,descripcion) VALUES (?, ?, ?)";
+                const groupResult = await queryAsync(insertGroupQuery, [idUsuario, grupo, descripcion]);
                 const idGrupo = groupResult.insertId;
 
                 // Crear el chat asociado al grupo en la tabla Chat
-                const insertChatQuery = "INSERT INTO chat (id_grupo, id_usuario) VALUES (?, ?)";
-                await queryAsync(insertChatQuery, [idGrupo, id_creador, `¡Bienvenido al grupo ${grupo}!`]);
+                const insertChatQuery = "INSERT INTO chat (id_grupo, id_usuario,nombre_usuario) VALUES (?,?, ?)";
+                await queryAsync(insertChatQuery, [idGrupo,idUsuario,nombre]);
 
                 // Añadir al creador al grupo si no está en él
                 const checkIfCreatorInGroupQuery = "SELECT * FROM usuariosgrupos WHERE usuario_id = ? AND grupo_id = ?";
-                const creatorInGroupResults = await queryAsync(checkIfCreatorInGroupQuery, [id_creador, idGrupo]);
+                const creatorInGroupResults = await queryAsync(checkIfCreatorInGroupQuery, [idUsuario, idGrupo]);
 
                 if (creatorInGroupResults.length === 0) {
                     const insertCreatorQuery = "INSERT INTO usuariosgrupos (usuario_id, grupo_id) VALUES (?, ?)";
-                    await queryAsync(insertCreatorQuery, [id_creador, idGrupo]);
+                    await queryAsync(insertCreatorQuery, [idUsuario, idGrupo]);
                 }
 
                 // Confirmar la transacción
@@ -130,6 +130,25 @@ exports.getUserGroups = async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 };
+
+exports.getUsersByCareer = async (req, res) => {
+    try {
+        const { id_carrera } = req.query;
+
+        const getUsersByCareerQuery = `
+            SELECT nombre, apellidos
+            FROM usuarios
+            WHERE carrera = ?;
+        `;
+
+        const usersByCareer = await queryAsync(getUsersByCareerQuery, [id_carrera]);
+
+        res.status(200).json({ users: usersByCareer });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
 
 exports.deleteUserGroup= async (req, res) => {
     try {
