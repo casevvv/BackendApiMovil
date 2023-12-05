@@ -1,111 +1,207 @@
-const modeloEmail = require('../models/modelEmail.js');
 
 const nodemailer = require('nodemailer');
+const crypto = require('crypto');
+const conn = require("../config/db.js");
+const jwt = require('jsonwebtoken');
 
-exports.sendEmailToUser  = async (req, res) => {
-  try{
-    const { to, subject, text } = req.body;
+const MASTER_KEY = 'm38_$56/*d2hhv';
 
-   if (!to || !subject || !text) {
-     return res.status(400).send({message:'Debes llenar todos los campos para poder enviar el correo!'});
-   } else {
+// Función para enviar el correo de recuperación con el código generado
+async function enviarCorreoRecuperacion(email, recoveryCode) {
+  try {
+    const transporter = nodemailer.createTransport({
+      host: 'smtp.gmail.com',
+      port: 465,
+      secure: true,
+      auth: {
+        user: 'lopezcaste266@gmail.com', // 
+        pass: 'eqqbcdmwepbtjszu' //eqqb cdmw epbt jszu
+      }
+    });
 
-     const transporter = nodemailer.createTransport({
-       host: "smtp.gmail.com",
-       port: 465,
-       secure: true,
-       auth: {
-         user: 'laaguja1601',
-         pass: 'qlknxnsdihpuexlb'
-       }
-     });
-       // send mail with defined transport object
-       const info = await transporter.sendMail({
-         from: 'laaguja1601@gmail.com', // sender address 
-         to: to, // list of receivers
-         subject: subject, // Subject line
-         text: text, // plain text body
-       });      
+    const mailOptions = {
+      from: 'lopezcaste266@gmail.com', // Cambia esto por tu correo
+      to: email,
+      subject: 'Recuperación de contraseña',
+      text: `Tu código de recuperación es: ${recoveryCode}`
+      // Puedes personalizar el mensaje del correo con el código de recuperación
+    };
 
-     transporter.sendMail(info, (error) => {
-       if (error) {
-         console.error('Error al enviar el correo:', error);
-         return res.status(500).send({message:'Error al enviar el correo'});
-       } else {
-         console.log('Correo enviado correctamente!');
-         return res.status(200).send({message:'Correo enviado correctamente!'});
-       }
-     });
-   }
-  } catch(e) {
-    console.error('Error al enviar el correo:', e);
-  } 
- 
+    // Enviar el correo con el código de recuperación
+    const info = await transporter.sendMail(mailOptions);
+    return info;
+  } catch (error) {
+    throw error;
+  }
+}
+
+// Endpoint para recuperación de contraseña
+exports.forgotPassword = async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).json({ message: 'Debes proporcionar un correo electrónico' });
+  }
+
+  try {
+    // Verificar si el correo electrónico existe en la base de datos
+    const user = await getUserByEmail(email);
+
+    if (!user) {
+      return res.status(404).json({ message: 'Correo electrónico no registrado' });
+    }
+
+    // Generar un código de recuperación al azar
+    const recoveryCode = crypto.randomBytes(6).toString('hex'); // Generar un código hexadecimal de 6 dígitos
+
+     // Almacenar el código de recuperación en la base de datos
+    await updateRecoveryCodeInDB(email, recoveryCode);
+
+    // Enviar correo electrónico con el código de recuperación
+    await enviarCorreoRecuperacion(email, recoveryCode);
+
+    return res.status(200).json({ message: 'Se ha enviado un correo de recuperación' });
+  } catch (error) {
+    console.error('Error al solicitar recuperación de contraseña:', error);
+    return res.status(500).json({ message: 'Error al solicitar recuperación de contraseña' });
+  }
 };
 
-// exports.sendEmail = async (req, res) => {
-//   try {
-   
-//     let {firstName, lastName, from, subject, text } = req.body;
+// Endpoint para restablecer contraseña con código de recuperación
+exports.resetPassword  = async (req, res) => {
+  const { email, recoveryCode, newPassword } = req.body;
 
-//     if (!firstName || !lastName || !from || !subject || !text) {
-//       return res.status(400).send('Debes llenar todos los campos para poder enviar el correo!')
-//     }
+  if (!email || !recoveryCode || !newPassword) {
+    return res.status(400).json({ message: 'Todos los campos son requeridos' });
+  }
 
-//       const data = new modeloEmail({
+  try {
+    // Verificar si el correo electrónico existe en la base de datos
+    const user = await getUserByEmail(email);
 
-//           name: `${firstName} ${lastName}`,
-//           from: from,
-//           subject: subject,
-//           text: text
-        
-//       });
+    if (!user) {
+      return res.status(404).json({ message: 'Correo electrónico no registrado' });
+    }
 
-//       const newRegister = await data.save();
+    // Verificar si el código de recuperación coincide con el almacenado en el usuario
+    if (recoveryCode !== user.codigoRecuperacion) {
+      return res.status(400).json({ message: 'Código de recuperación inválido' });
+    }
 
-//       res.status(201).send(newRegister);
-    
-//   } catch (err) {
-//     console.error("Error al enviar el correo:", err);
-//     res.status(500).send("Error en el microservicio enviar correo");
-//   };
+    // Actualizar la contraseña del usuario
+    await actualizarContraseña(email, newPassword);
+    // Eliminar el código de recuperación almacenado en la base de datos
+    await clearRecoveryCodeInDB(email);
 
-// };
+    // Obtener la información actualizada del usuario
+    const updatedUser = await getUserByEmail(email);
 
-// exports.getEmail = async (req, res) => {
-//   try {
-//     const page = parseInt(req.query.page) || 1;
-//     const limit = parseInt(req.query.limit) || 10;
+    if (!updatedUser) {
+      return res.status(404).json({ message: 'Correo electrónico no registrado' });
+    }
 
-//     const data = await modeloEmail.paginate({}, { page, limit });
 
-//     if (data.totalDocs === 0) {
-//       return res.status(404).send({ message: 'No hay correos!' });
-//     }
+    // Generar un nuevo token con la información actualizada del usuario
+    const newPayload = {
+      id: user.id,
+      email: user.email,
+    };
 
-//     res.status(200).send(data);
+    const newToken = jwt.sign(newPayload, MASTER_KEY);
 
-//   } catch (err){
-//     console.error("Error en el microservicio Obtener Correos:", err);
-//     res.status(500).send({message:`Error en el microservicio Obtener Correos`})
-//   };
-// };
+    // Enviar correo de confirmación de recuperación de contraseña
+    await enviarCorreoConfirmacion(email);
 
-// exports.deleteEmail = async (req, res)=>{
-//     try {
-//         const { id } = req.params;
+    return res.status(200).json({  token: newToken, message: 'Contraseña actualizada correctamente' });
+  } catch (error) {
+    console.error('Error al restablecer contraseña:', error);
+    return res.status(500).json({ message: 'Error al restablecer contraseña' });
+  }
+}
 
-//         if(!id){
-//           return res.status(400).send({message:'Para borrar un correo debes indicar cuál con un ID'});
-//         }else{
-//           const deleteEmail = await modeloEmail.findByIdAndDelete(id);
+// Función para enviar correo de confirmación de recuperación de contraseña
+async function enviarCorreoConfirmacion(email) {
+  try {
+    const transporter = nodemailer.createTransport({
+      host: 'smtp.gmail.com',
+      port: 465,
+      secure: true,
+      auth: {
+        user: 'lopezcaste266@gmail.com', 
+        pass: 'eqqbcdmwepbtjszu' //  eqqb cdmw epbt jszu
+      }
+    });
 
-//           if(deleteEmail)res.status(200).send({message:`Se elimino el correo con ID: ${id}`});
-//           else
-//           res.status(404).send({message:`No se encontro información relacionada con el id:${id}`});
-//         };
-//     } catch (err) {
-//       console.error("Error en el microservicio Eliminar Correos:", err);
-//       res.status(500).send({message:`Error en el microservicio Eliminar Correos`})
-//     }
-// };
+    const mailOptions = {
+      from: 'lopezcaste266@gmail.com', 
+      to: email,
+      subject: 'Recuperación de contraseña exitosa',
+      text: 'Tu contraseña ha sido actualizada exitosamente.'
+      // Puedes personalizar el mensaje del correo de confirmación aquí
+    };
+
+    // Enviar el correo de confirmación de recuperación de contraseña
+    const info = await transporter.sendMail(mailOptions);
+    return info;
+  } catch (error) {
+    throw error;
+  }
+}
+
+// Función para obtener usuario por correo electrónico desde MySQL
+async function getUserByEmail(email) {
+  return new Promise((resolve, reject) => {
+    conn.query('SELECT * FROM usuarios WHERE email = ?', [email], (error, results) => {
+      if (error) {
+        reject(error);
+      } else if (results.length > 0) {
+        resolve(results[0]);
+      } else {
+        resolve(null);
+      }
+    });
+  });
+}
+
+// Función para actualizar la contraseña en la base de datos
+async function actualizarContraseña(email, newPassword) {
+  return new Promise((resolve, reject) => {
+    conn.query('UPDATE usuarios SET password = ? WHERE email = ?', [newPassword, email], (error, results) => {
+      if (error) {
+        reject(error);
+      } else {
+        resolve(results);
+      }
+    });
+  });
+}
+
+// Función para almacenar el código de recuperación en la tabla usuarios
+async function updateRecoveryCodeInDB(email, recoveryCode) {
+  return new Promise((resolve, reject) => {
+    conn.query(
+      'UPDATE usuarios SET codigoRecuperacion = ? WHERE email = ?',
+      [recoveryCode, email],
+      (error, results) => {
+        if (error) {
+          reject(error);
+        } else {
+          resolve(results);
+        }
+      }
+    );
+  });
+}
+
+// Función para eliminar el código de recuperación de la tabla usuarios
+async function clearRecoveryCodeInDB(email) {
+  return new Promise((resolve, reject) => {
+    conn.query('UPDATE usuarios SET codigoRecuperacion = NULL WHERE email = ?', [email], (error, results) => {
+      if (error) {
+        reject(error);
+      } else {
+        resolve(results);
+      }
+    });
+  });
+}

@@ -22,7 +22,7 @@ exports.createGroup = async (req, res) => {
 
             try {
                 // Insertar el grupo en la base de datos
-                const insertGroupQuery = "INSERT INTO grupos (id_usuario, grupo, usuario ,descripcion) VALUES (?, ?, ?)";
+                const insertGroupQuery = "INSERT INTO grupos (id_usuario, grupo, usuario ,descripcion) VALUES (?, ?, ?, ?)";
                 const groupResult = await queryAsync(insertGroupQuery, [idUsuario, grupo, descripcion]);
                 const idGrupo = groupResult.insertId;
 

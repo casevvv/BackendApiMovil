@@ -50,13 +50,14 @@ const handleMulterError = (err, req, res, next) => {
         handleMulterError(err, req, res, next);
       } else {
       // Verificar si se envió un archivo en la solicitud
-      if (req.file && req.file.length > 0) {
+      if (req.file && Object.keys(req.file).length > 0) {
+        console.log(req.file)
         // Obtener el archivo subido y asignarlo a req.fileName(agregar un parametro a req.files para enviar los archivos a otro middleware)
         req.filePath = req.file.path;
         next();
       } else {
         // Si no se envió un archivo, asignar un valor vacío a req.file
-        req.filepath = [];
+        req.filePath = [];
         next();
       }
       }

@@ -1,64 +1,7 @@
 const jwt = require('jsonwebtoken');
-const bcrypt = require('bcryptjs');
 const conn = require("../config/db.js");
 
 const MASTER_KEY = 'm38_$56/*d2hhv';
-
-exports.recoveryPassword = async (req, res) => {
-  const authHeader = req.headers.authorization;
-
-  if (!authHeader) {
-    return res.status(401).send({ message: 'Se requiere un token' });
-  }
-
-  const [type, token] = authHeader.split(' ');
-
-  if (type !== 'Bearer') {
-    return res.status(401).send({ message: 'El tipo de autorización no es válido' });
-  }
-
-  try {
-    const decoded = jwt.verify(token, MASTER_KEY);
-    const { password, newPassword } = req.body;
-
-    if (!password || !newPassword) {
-      return res.status(400).send({ message: 'Los datos están incompletos. Por favor, rellénalos.' });
-    }
-
-    const user = await User.findById(decoded.id);
-
-    if (!user) {
-      return res.status(404).send({ message: 'Usuario no encontrado' });
-    }
-
-    const isPasswordMatch = await bcrypt.compare(password, user.password);
-
-    if (!isPasswordMatch) {
-      return res.status(401).send({ message: 'Contraseña actual incorrecta' });
-    }
-
-    const hashedNewPassword = await bcrypt.hash(newPassword, 10);
-    user.password = hashedNewPassword;
-
-    const savedUser = await user.save();
-
-    const newPayload = {
-      id: savedUser.id,
-      firstName: savedUser.firstName,
-      lastName: savedUser.lastName,
-      email: savedUser.email,
-      password: savedUser.password,
-      role: savedUser.role
-    };
-
-    const newToken = jwt.sign(newPayload, MASTER_KEY);
-
-    return res.status(200).json({ token: newToken });
-  } catch (err) {
-    console.error(`Ocurrió un error en la autenticación: ${err}`);
-    return res.status(401).send({ message: 'Token inválido' });
-  }
-};
 
 exports.authenticate = (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -108,13 +51,12 @@ exports.signUp = async (req, res) => {
       telefono,
       password,
       email,
+      foto,
       carrera
     } = req.body;
     console.log(req.body)
-    console.log(req.file.path)
-    const foto = req.file.path;
 
-    if (!nombre || !apellidos || !identidad || !email || !telefono || !foto || !password || !carrera) {
+    if (!nombre.trim() || !apellidos.trim() || !identidad.trim() || !email.trim() || !telefono.trim() || !foto.trim() || !password.trim() || !carrera.trim()) {
       return res.status(500).send({ message: 'Los datos no están completos!' });
     } else {
       conn.query('SELECT * FROM usuarios WHERE email = ?', [email], async (error, results) => {
@@ -180,7 +122,7 @@ exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
     console.log(req.body)
-    if (!email || !password) {
+    if (!email.trim() || !password.trim()) {
       return res.status(401).send({ message: 'Los datos no están completos!, llenalos!' });
     } else {
       //buscar usuario en la colecion de usuarios por email  para saber si ya existe o no se ha registrado

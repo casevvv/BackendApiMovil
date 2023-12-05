@@ -30,8 +30,6 @@ exports.addFriend = (req, res) => {
     }
 }
 
-
-
 exports.getFriends = (req, res) => {
     const { id } = req.query;
 
@@ -47,6 +45,18 @@ exports.getFriends = (req, res) => {
         }
     );
 }
+exports.getAllUsersWithCarrera = (req, res) => {
+    conn.query(
+      "SELECT U.nombre, U.apellidos, C.carrera AS nombre_carrera FROM usuarios U INNER JOIN carreras C ON U.id = C.id",
+      (error, results) => {
+        if (error) {
+          return res.status(500).json({ error });
+        } else {
+          res.status(200).json({ users: results });
+        }
+      }
+    );
+  };
 
 exports.deleteFriend = (req, res) => {
     try {
